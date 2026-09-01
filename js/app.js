@@ -1,4 +1,4 @@
-import { ROUTE, TRIP_NAME } from "./data.js";
+import { ROUTE, TRIP_NAME, PLANNED } from "./data.js";
 import { load, save, exportJSON, importJSON, storageBytes } from "./store.js";
 
 /* ---------- derived route model ---------- */
@@ -109,9 +109,13 @@ let lastView = null;
 
 function initMap() {
   const container = document.getElementById("map");
-  map = L.map(container, { zoomControl: true, attributionControl: true });
+  // fadeAnimation off: with the ResizeObserver re-measure below, Leaflet's
+  // tile fade-in can get stuck at opacity 0 on first paint.
+  map = L.map(container, { zoomControl: true, attributionControl: true, fadeAnimation: false });
+  // OSM raster tiles, recoloured to a dark theme by a CSS filter on the tile
+  // pane (see style.css). Keyless and works anywhere — no CARTO/Stadia API key.
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 18,
+    maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
   mapLayers = L.layerGroup().addTo(map);
@@ -120,32 +124,43 @@ function initMap() {
     if (mapFramed) lastView = { center: map.getCenter(), zoom: map.getZoom() };
   });
 
-  // The map panel is display:none while other tabs are open, so Leaflet keeps
-  // measuring it at the wrong size. Re-measure whenever it actually resizes
-  // (including 0 -> real on first show and every tab switch back).
-  new ResizeObserver(() => {
-    if (container.clientWidth === 0) return;
-    map.invalidateSize();
-    if (!mapFramed) {
-      map.fitBounds(ROUTE_BOUNDS.pad(0.08));
-      mapFramed = true;
-    }
-  }).observe(container);
+  // The map panel is display:none while other tabs are open and the layout
+  // settles a beat after first paint, so Leaflet keeps mis-measuring the
+  // container. Re-measure on any size change (debounced through rAF to avoid a
+  // ResizeObserver feedback loop); frame the route once the box is real.
+  let raf = 0;
+  const remeasure = () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      if (!container.clientWidth || !container.clientHeight) return;
+      map.invalidateSize({ pan: false });
+      if (!mapFramed) {
+        map.fitBounds(ROUTE_BOUNDS.pad(0.08));
+        mapFramed = true;
+      }
+    });
+  };
+  new ResizeObserver(remeasure).observe(container);
+  window.addEventListener("load", remeasure);
+  window.addEventListener("orientationchange", () => setTimeout(remeasure, 200));
+  remeasure();
 
   drawMap();
 }
 
-/** Called when the Map tab is shown: restore the traveller's last pan/zoom. */
+/** Called when the Map tab is shown: re-measure, restore last pan/zoom. */
 function refreshMap() {
   if (!mapReady) return;
-  map.invalidateSize();
-  if (mapFramed && lastView) {
-    map.setView(lastView.center, lastView.zoom, { animate: false });
-  }
+  requestAnimationFrame(() => {
+    map.invalidateSize({ pan: false });
+    if (mapFramed && lastView) {
+      map.setView(lastView.center, lastView.zoom, { animate: false });
+    }
+  });
 }
 
-const GREEN = "#1f7a4d";
-const ORANGE = "#c25a2b";
+const BLUE = "#4a9eff";
+const START_GREEN = "#4aff98";
 
 function drawMap() {
   if (!mapReady) return;
@@ -155,25 +170,33 @@ function drawMap() {
   const g = LEG.geometry;
   const splitGi = STOPS[done].gi;
 
-  // route line: walked portion solid green, the rest dashed orange
-  L.polyline(g.slice(splitGi), {
-    color: ORANGE, weight: 4, opacity: 0.75, dashArray: "2 8", lineCap: "round",
-  }).addTo(mapLayers);
-  if (splitGi > 0) {
-    L.polyline(g.slice(0, splitGi + 1), {
-      color: GREEN, weight: 5, opacity: 0.95, lineCap: "round",
+  // dim dashed "someday" outline continuing down the coast
+  if (PLANNED && PLANNED.length > 1) {
+    L.polyline(PLANNED, {
+      color: BLUE, weight: 2, opacity: 0.22, dashArray: "1 9", lineCap: "round",
     }).addTo(mapLayers);
   }
 
-  // a small dot for every walking day
+  // route line: the part still ahead, dashed; the part walked, solid
+  L.polyline(g.slice(splitGi), {
+    color: BLUE, weight: 3, opacity: 0.4, dashArray: "3 7", lineCap: "round",
+  }).addTo(mapLayers);
+  if (splitGi > 0) {
+    L.polyline(g.slice(0, splitGi + 1), {
+      color: BLUE, weight: 4, opacity: 0.95, lineCap: "round",
+    }).addTo(mapLayers);
+  }
+
+  // a dot for every walking day
   STOPS.forEach((wp, i) => {
     if (i === 0) return;
     const reached = i <= done;
     L.circleMarker(wp.coord, {
       radius: 3.5,
-      stroke: false,
-      fillColor: reached ? GREEN : ORANGE,
-      fillOpacity: reached ? 0.9 : 0.65,
+      color: "#0d0f14",
+      weight: 1,
+      fillColor: BLUE,
+      fillOpacity: reached ? 1 : 0.45,
     })
       .bindPopup(
         `<strong>${wp.name}</strong> &middot; mile ${Math.round(CUM_MILES[i])}<br>near ${wp.near}`,
@@ -181,28 +204,37 @@ function drawMap() {
       .addTo(mapLayers);
   });
 
-  // start flag and a "you are here" marker at the current day
-  bigMarker(STOPS[0].coord, "#5b5b5b", `<strong>Start:</strong> ${STOPS[0].name}`);
+  // start marker, and a pulsing "you are here" at the current day
+  bigMarker(STOPS[0].coord, START_GREEN, `<strong>Start:</strong> ${STOPS[0].name}`);
   if (done > 0) {
-    bigMarker(
-      STOPS[done].coord,
-      GREEN,
-      `<strong>You are here</strong><br>${STOPS[done].name} &middot; near ${STOPS[done].near}`,
-    );
+    L.marker(STOPS[done].coord, { icon: pulseIcon(), zIndexOffset: 1000 })
+      .bindPopup(`<strong>You are here</strong><br>${STOPS[done].name} &middot; near ${STOPS[done].near}`)
+      .addTo(mapLayers);
   }
   bigMarker(
     STOPS[STOPS.length - 1].coord,
-    ORANGE,
+    BLUE,
     `<strong>Finish:</strong> ${STOPS[STOPS.length - 1].near}`,
   );
 }
 
 function bigMarker(coord, color, html) {
   L.circleMarker(coord, {
-    radius: 6.5, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1,
+    radius: 6, color: "#0d0f14", weight: 2, fillColor: color, fillOpacity: 1,
   })
     .bindPopup(html)
     .addTo(mapLayers);
+}
+
+function pulseIcon() {
+  return L.divIcon({
+    className: "",
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+    html:
+      '<span style="position:absolute;inset:0;border-radius:50%;background:#4a9eff;opacity:.3;animation:lw-ripple 2s infinite"></span>' +
+      '<span style="position:absolute;inset:4px;border-radius:50%;background:#4a9eff;border:2px solid #0d0f14"></span>',
+  });
 }
 
 /* ---------- render: header ---------- */
