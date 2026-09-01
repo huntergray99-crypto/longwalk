@@ -3,10 +3,12 @@
 A mobile-first PWA to plan and track a long-distance walking journey. No backend,
 no accounts — everything lives in your browser's local storage on one device.
 
-Current route: **Lakewood, WA → the Pacific coast at Westport**, 10 walking days
-of ~10 miles (the distance covered per day). A dim dashed line continues the
-intended outline down the coast toward LA — that section gets day-by-day routing
-in a later pass.
+Current route: **Lakewood, WA → Astoria, OR** — 22 walking days of ~10 miles
+(the distance covered per day), down Puget Sound to the ocean at Westport, around
+Willapa Bay, to Megler at the foot of the Astoria–Megler Bridge. The bridge bans
+pedestrians, so the Columbia crossing to Astoria (`CROSSING` in data.js) is an
+assisted hop — bike/pedestrian shuttle or a ride. A dim dashed line continues the
+intended outline down the coast toward LA; that gets day-by-day routing next.
 
 **Features**
 

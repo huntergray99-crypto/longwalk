@@ -1,4 +1,4 @@
-import { ROUTE, TRIP_NAME, PLANNED } from "./data.js";
+import { ROUTE, TRIP_NAME, PLANNED, CROSSING } from "./data.js";
 import { load, save, exportJSON, importJSON, storageBytes } from "./store.js";
 
 /* ---------- derived route model ---------- */
@@ -103,6 +103,7 @@ function setProgress(n) {
 
 let map, mapLayers, mapReady = false;
 const ROUTE_BOUNDS = L.latLngBounds(LEG.geometry);
+if (CROSSING) ROUTE_BOUNDS.extend(CROSSING.to);
 
 let mapFramed = false;
 let lastView = null;
@@ -122,6 +123,15 @@ function initMap() {
   mapReady = true;
   map.on("moveend", () => {
     if (mapFramed) lastView = { center: map.getCenter(), zoom: map.getZoom() };
+  });
+  // day markers switch between dots and numbered pins depending on zoom
+  let lastZoomBand = null;
+  map.on("zoomend", () => {
+    const band = map.getZoom() >= PIN_ZOOM;
+    if (band !== lastZoomBand) {
+      lastZoomBand = band;
+      drawMap();
+    }
   });
 
   // The map panel is display:none while other tabs are open and the layout
@@ -162,7 +172,8 @@ function refreshMap() {
 const BLUE = "#5aa8ff";
 const BLUE_DIM = "#3a6ea5";
 const CASING = "#0a0c11";
-const START_GREEN = "#4aff98";
+const AMBER = "#ff9d4a";
+const PIN_ZOOM = 11; // at/above this zoom, every day gets a numbered pin
 
 function drawMap() {
   if (!mapReady) return;
@@ -181,6 +192,19 @@ function drawMap() {
     }).addTo(mapLayers);
   }
 
+  // the one stretch with no legal walking route — crossed by shuttle/ride
+  if (CROSSING) {
+    L.polyline([CROSSING.from, CROSSING.to], {
+      color: AMBER, weight: 2.5, opacity: 0.9, dashArray: "5 6", lineCap: "round",
+    }).addTo(mapLayers);
+    L.marker(CROSSING.to, {
+      icon: L.divIcon({ className: "", iconSize: [16, 16], iconAnchor: [8, 8], html: '<span class="end-pin cross"></span>' }),
+      zIndexOffset: 800,
+    })
+      .bindPopup(`<strong>${CROSSING.label}</strong><br>${CROSSING.note}<br>Walking resumes in Astoria.`)
+      .addTo(mapLayers);
+  }
+
   // the walking route, drawn as a dark casing + a bright core so it reads on
   // any part of the basemap
   L.polyline(g, { color: CASING, weight: 8, opacity: 0.9, lineCap: "round", lineJoin: "round" }).addTo(mapLayers);
@@ -191,21 +215,28 @@ function drawMap() {
     L.polyline(walked, { color: BLUE, weight: 4.5, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(mapLayers);
   }
 
-  // a numbered pin for every walking day (the last day is the finish marker)
+  // day markers: numbered pins when zoomed in, otherwise dots with a numbered
+  // pin only every 5th day (and always the current one) so they don't crowd
+  const zoomedIn = mapReady && map.getZoom() >= PIN_ZOOM;
   STOPS.forEach((wp, i) => {
     if (i === 0 || i === STOPS.length - 1) return;
     const reached = i <= done;
-    L.marker(wp.coord, {
-      icon: L.divIcon({
-        className: "",
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
-        html: `<span class="day-pin${reached ? " done" : ""}">${i}</span>`,
-      }),
-    })
-      .bindPopup(
-        `<strong>Day ${i}</strong> &middot; mile ${Math.round(CUM_MILES[i])}<br>near ${wp.near}`,
-      )
+    const asPin = zoomedIn || i % 5 === 0 || i === done;
+    const marker = asPin
+      ? L.marker(wp.coord, {
+          icon: L.divIcon({
+            className: "",
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+            html: `<span class="day-pin${reached ? " done" : ""}">${i}</span>`,
+          }),
+        })
+      : L.circleMarker(wp.coord, {
+          radius: 3.5, color: CASING, weight: 1.5,
+          fillColor: BLUE, fillOpacity: reached ? 1 : 0.5,
+        });
+    marker
+      .bindPopup(`<strong>Day ${i}</strong> &middot; mile ${Math.round(CUM_MILES[i])}<br>near ${wp.near}`)
       .addTo(mapLayers);
   });
 
@@ -213,7 +244,7 @@ function drawMap() {
   endMarker(STOPS[0].coord, "start", `<strong>Start</strong><br>${STOPS[0].name}`);
   endMarker(
     STOPS[STOPS.length - 1].coord, "finish",
-    `<strong>Finish</strong><br>${STOPS[STOPS.length - 1].near} — the Pacific`,
+    `<strong>Day ${STOPS.length - 1}</strong> — end of the walked route so far<br>near ${STOPS[STOPS.length - 1].near}`,
   );
   if (done > 0) {
     L.marker(STOPS[done].coord, { icon: pulseIcon(), zIndexOffset: 1000 })

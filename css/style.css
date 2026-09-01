@@ -275,7 +275,8 @@ main { flex: 1; position: relative; overflow: hidden; }
   border: 2px solid #0a0c11; box-shadow: 0 0 0 1px rgba(255,255,255,.25), 0 1px 5px rgba(0,0,0,.7);
 }
 .end-pin.start { background: var(--start); }
-.end-pin.finish { background: #ff9d4a; }
+.end-pin.finish { background: #5aa8ff; }
+.end-pin.cross { background: #ff9d4a; }
 .leaflet-popup-content { font: inherit; margin: 10px 12px; }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip {
   background: var(--surface-2); color: var(--ink);
