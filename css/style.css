@@ -252,10 +252,30 @@ main { flex: 1; position: relative; overflow: hidden; }
 
 /* ---------- leaflet in the dark ---------- */
 .leaflet-container { background: var(--bg); }
-/* recolour the light OSM raster tiles into a dark basemap */
+/* recolour the light OSM raster tiles into a clean monochrome dark basemap,
+   held back so the route reads on top */
 .leaflet-tile-pane {
-  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.75);
+  filter: grayscale(1) invert(0.92) brightness(0.8) contrast(1.04);
 }
+
+/* numbered day pins */
+.day-pin {
+  display: flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  font: 700 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0a0c11; color: #7cc0ff;
+  border: 1.5px solid #5aa8ff;
+  box-shadow: 0 0 0 1.5px #0a0c11, 0 1px 4px rgba(0,0,0,.7);
+}
+.day-pin.done {
+  background: #5aa8ff; color: #06131f; border-color: #d6ebff;
+}
+.end-pin {
+  display: block; width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid #0a0c11; box-shadow: 0 0 0 1px rgba(255,255,255,.25), 0 1px 5px rgba(0,0,0,.7);
+}
+.end-pin.start { background: var(--start); }
+.end-pin.finish { background: #ff9d4a; }
 .leaflet-popup-content { font: inherit; margin: 10px 12px; }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip {
   background: var(--surface-2); color: var(--ink);

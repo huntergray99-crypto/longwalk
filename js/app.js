@@ -135,7 +135,7 @@ function initMap() {
       if (!container.clientWidth || !container.clientHeight) return;
       map.invalidateSize({ pan: false });
       if (!mapFramed) {
-        map.fitBounds(ROUTE_BOUNDS.pad(0.08));
+        map.fitBounds(ROUTE_BOUNDS, { padding: [24, 28] });
         mapFramed = true;
       }
     });
@@ -159,7 +159,9 @@ function refreshMap() {
   });
 }
 
-const BLUE = "#4a9eff";
+const BLUE = "#5aa8ff";
+const BLUE_DIM = "#3a6ea5";
+const CASING = "#0a0c11";
 const START_GREEN = "#4aff98";
 
 function drawMap() {
@@ -169,58 +171,66 @@ function drawMap() {
   const done = daysDone();
   const g = LEG.geometry;
   const splitGi = STOPS[done].gi;
+  const ahead = g.slice(splitGi);
+  const walked = splitGi > 0 ? g.slice(0, splitGi + 1) : [];
 
   // dim dashed "someday" outline continuing down the coast
   if (PLANNED && PLANNED.length > 1) {
     L.polyline(PLANNED, {
-      color: BLUE, weight: 2, opacity: 0.22, dashArray: "1 9", lineCap: "round",
+      color: BLUE_DIM, weight: 2, opacity: 0.5, dashArray: "2 8", lineCap: "round",
     }).addTo(mapLayers);
   }
 
-  // route line: the part still ahead, dashed; the part walked, solid
-  L.polyline(g.slice(splitGi), {
-    color: BLUE, weight: 3, opacity: 0.4, dashArray: "3 7", lineCap: "round",
+  // the walking route, drawn as a dark casing + a bright core so it reads on
+  // any part of the basemap
+  L.polyline(g, { color: CASING, weight: 8, opacity: 0.9, lineCap: "round", lineJoin: "round" }).addTo(mapLayers);
+  L.polyline(ahead, {
+    color: BLUE, weight: 3.5, opacity: 0.75, dashArray: "1 6", lineCap: "round",
   }).addTo(mapLayers);
-  if (splitGi > 0) {
-    L.polyline(g.slice(0, splitGi + 1), {
-      color: BLUE, weight: 4, opacity: 0.95, lineCap: "round",
-    }).addTo(mapLayers);
+  if (walked.length) {
+    L.polyline(walked, { color: BLUE, weight: 4.5, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(mapLayers);
   }
 
-  // a dot for every walking day
+  // a numbered pin for every walking day (the last day is the finish marker)
   STOPS.forEach((wp, i) => {
-    if (i === 0) return;
+    if (i === 0 || i === STOPS.length - 1) return;
     const reached = i <= done;
-    L.circleMarker(wp.coord, {
-      radius: 3.5,
-      color: "#0d0f14",
-      weight: 1,
-      fillColor: BLUE,
-      fillOpacity: reached ? 1 : 0.45,
+    L.marker(wp.coord, {
+      icon: L.divIcon({
+        className: "",
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        html: `<span class="day-pin${reached ? " done" : ""}">${i}</span>`,
+      }),
     })
       .bindPopup(
-        `<strong>${wp.name}</strong> &middot; mile ${Math.round(CUM_MILES[i])}<br>near ${wp.near}`,
+        `<strong>Day ${i}</strong> &middot; mile ${Math.round(CUM_MILES[i])}<br>near ${wp.near}`,
       )
       .addTo(mapLayers);
   });
 
-  // start marker, and a pulsing "you are here" at the current day
-  bigMarker(STOPS[0].coord, START_GREEN, `<strong>Start:</strong> ${STOPS[0].name}`);
+  // start / finish / "you are here"
+  endMarker(STOPS[0].coord, "start", `<strong>Start</strong><br>${STOPS[0].name}`);
+  endMarker(
+    STOPS[STOPS.length - 1].coord, "finish",
+    `<strong>Finish</strong><br>${STOPS[STOPS.length - 1].near} — the Pacific`,
+  );
   if (done > 0) {
     L.marker(STOPS[done].coord, { icon: pulseIcon(), zIndexOffset: 1000 })
       .bindPopup(`<strong>You are here</strong><br>${STOPS[done].name} &middot; near ${STOPS[done].near}`)
       .addTo(mapLayers);
   }
-  bigMarker(
-    STOPS[STOPS.length - 1].coord,
-    BLUE,
-    `<strong>Finish:</strong> ${STOPS[STOPS.length - 1].near}`,
-  );
 }
 
-function bigMarker(coord, color, html) {
-  L.circleMarker(coord, {
-    radius: 6, color: "#0d0f14", weight: 2, fillColor: color, fillOpacity: 1,
+function endMarker(coord, kind, html) {
+  L.marker(coord, {
+    zIndexOffset: 900,
+    icon: L.divIcon({
+      className: "",
+      iconSize: [16, 16],
+      iconAnchor: [8, 8],
+      html: `<span class="end-pin ${kind}"></span>`,
+    }),
   })
     .bindPopup(html)
     .addTo(mapLayers);
@@ -229,11 +239,11 @@ function bigMarker(coord, color, html) {
 function pulseIcon() {
   return L.divIcon({
     className: "",
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
     html:
-      '<span style="position:absolute;inset:0;border-radius:50%;background:#4a9eff;opacity:.3;animation:lw-ripple 2s infinite"></span>' +
-      '<span style="position:absolute;inset:4px;border-radius:50%;background:#4a9eff;border:2px solid #0d0f14"></span>',
+      '<span style="position:absolute;inset:0;border-radius:50%;background:#5aa8ff;opacity:.35;animation:lw-ripple 2s infinite"></span>' +
+      '<span style="position:absolute;inset:5px;border-radius:50%;background:#5aa8ff;border:2px solid #0a0c11"></span>',
   });
 }
 

@@ -1,6 +1,6 @@
 /* LongWalk service worker — offline app shell + on-demand map tile cache. */
 
-const VERSION = "longwalk-v2";
+const VERSION = "longwalk-v3";
 const SHELL = `${VERSION}-shell`;
 const TILES = `${VERSION}-tiles`;
 const MAX_TILES = 600; // ~15–25 MB of OSM tiles
