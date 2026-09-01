@@ -3,17 +3,21 @@
 A mobile-first PWA to plan and track a long-distance walking journey. No backend,
 no accounts — everything lives in your browser's local storage on one device.
 
-Current route: **Lakewood, WA → Astoria, OR** — 22 walking days of ~10 miles
-(the distance covered per day), down Puget Sound to the ocean at Westport, around
-Willapa Bay, to Megler at the foot of the Astoria–Megler Bridge. The bridge bans
-pedestrians, so the Columbia crossing to Astoria (`CROSSING` in data.js) is an
-assisted hop — bike/pedestrian shuttle or a ride. A dim dashed line continues the
-intended outline down the coast toward LA; that gets day-by-day routing next.
+Current route: **Lakewood, WA → Coos Bay, OR** — 45 walking days of ~10 miles
+(the distance covered per day): down Puget Sound to the ocean at Westport, around
+Willapa Bay to the Columbia, across to Astoria, then the full northern + central
+Oregon coast on US-101. A dim dashed line continues the intended outline toward
+LA; that gets day-by-day routing next.
+
+The Astoria–Megler Bridge bans pedestrians (and the nearest ferry is ~50 mi
+upriver), so the Columbia crossing is a `CROSSINGS` entry — an assisted hop
+(bike/pedestrian shuttle or a ride), drawn as an amber dashed line.
 
 **Features**
 
-- Interactive map (Leaflet, dark): the route in blue with a dot for every walking
-  day, a green start marker, and a pulsing "you are here".
+- Interactive map (Leaflet + Esri World Imagery, keyless): the route in blue with
+  a numbered pin for every walking day, a green start marker, a pulsing "you are
+  here", and amber dashed lines for the crossings you can't walk.
 - Route tab: a numbered list of every day with the town you're passing and the
   cumulative mile. Tap the day you've reached and everything before it fills in.
 - Header totals: miles walked, miles to go, days done, % complete. Set a trip

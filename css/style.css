@@ -252,11 +252,8 @@ main { flex: 1; position: relative; overflow: hidden; }
 
 /* ---------- leaflet in the dark ---------- */
 .leaflet-container { background: var(--bg); }
-/* recolour the light OSM raster tiles into a clean monochrome dark basemap,
-   held back so the route reads on top */
-.leaflet-tile-pane {
-  filter: grayscale(1) invert(0.92) brightness(0.8) contrast(1.04);
-}
+/* lift the satellite imagery so open ocean / forest isn't pure black at overview */
+.sat-tiles { filter: brightness(1.4) saturate(0.85) contrast(0.95); }
 
 /* numbered day pins */
 .day-pin {

@@ -1,9 +1,10 @@
-import { ROUTE, TRIP_NAME, PLANNED, CROSSING } from "./data.js";
+import { ROUTE, TRIP_NAME, PLANNED, CROSSINGS } from "./data.js";
 import { load, save, exportJSON, importJSON, storageBytes } from "./store.js";
 
 /* ---------- derived route model ---------- */
 
 const LEG = ROUTE[0];
+const GAPS = LEG.gaps || []; // geometry indices where the line must not connect
 const STOPS = LEG.waypoints;            // [start, Day 1, Day 2, …]
 const DAYS = STOPS.slice(1);            // the walking days
 const TOTAL_MILES = DAYS.reduce((s, d) => s + (d.milesFromPrev || 0), 0);
@@ -103,7 +104,6 @@ function setProgress(n) {
 
 let map, mapLayers, mapReady = false;
 const ROUTE_BOUNDS = L.latLngBounds(LEG.geometry);
-if (CROSSING) ROUTE_BOUNDS.extend(CROSSING.to);
 
 let mapFramed = false;
 let lastView = null;
@@ -113,11 +113,15 @@ function initMap() {
   // fadeAnimation off: with the ResizeObserver re-measure below, Leaflet's
   // tile fade-in can get stuck at opacity 0 on first paint.
   map = L.map(container, { zoomControl: true, attributionControl: true, fadeAnimation: false });
-  // OSM raster tiles, recoloured to a dark theme by a CSS filter on the tile
-  // pane (see style.css). Keyless and works anywhere — no CARTO/Stadia API key.
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  // Esri World Imagery (satellite) — naturally dark, shows the real coastline,
+  // keyless. Place-name labels layered on top.
+  const esri = "https://server.arcgisonline.com/ArcGIS/rest/services/";
+  L.tileLayer(esri + "World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 19, className: "sat-tiles",
+    attribution: "Imagery &copy; Esri — Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+  }).addTo(map);
+  L.tileLayer(esri + "Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 19, opacity: 0.8,
   }).addTo(map);
   mapLayers = L.layerGroup().addTo(map);
   mapReady = true;
@@ -175,6 +179,17 @@ const CASING = "#0a0c11";
 const AMBER = "#ff9d4a";
 const PIN_ZOOM = 11; // at/above this zoom, every day gets a numbered pin
 
+// g[from..to] inclusive, broken into runs at any crossing gap in that range
+function lineRuns(from, to) {
+  const g = LEG.geometry;
+  const cuts = GAPS.filter((x) => x >= from && x < to).sort((a, b) => a - b);
+  const runs = [];
+  let start = from;
+  for (const c of cuts) { runs.push(g.slice(start, c + 1)); start = c + 1; }
+  runs.push(g.slice(start, to + 1));
+  return runs.filter((r) => r.length > 1);
+}
+
 function drawMap() {
   if (!mapReady) return;
   mapLayers.clearLayers();
@@ -182,8 +197,6 @@ function drawMap() {
   const done = daysDone();
   const g = LEG.geometry;
   const splitGi = STOPS[done].gi;
-  const ahead = g.slice(splitGi);
-  const walked = splitGi > 0 ? g.slice(0, splitGi + 1) : [];
 
   // dim dashed "someday" outline continuing down the coast
   if (PLANNED && PLANNED.length > 1) {
@@ -192,27 +205,31 @@ function drawMap() {
     }).addTo(mapLayers);
   }
 
-  // the one stretch with no legal walking route — crossed by shuttle/ride
-  if (CROSSING) {
-    L.polyline([CROSSING.from, CROSSING.to], {
+  // stretches with no legal walking route — crossed by shuttle/ride
+  for (const c of CROSSINGS || []) {
+    L.polyline([c.from, c.to], {
       color: AMBER, weight: 2.5, opacity: 0.9, dashArray: "5 6", lineCap: "round",
     }).addTo(mapLayers);
-    L.marker(CROSSING.to, {
+    L.marker(c.to, {
       icon: L.divIcon({ className: "", iconSize: [16, 16], iconAnchor: [8, 8], html: '<span class="end-pin cross"></span>' }),
       zIndexOffset: 800,
     })
-      .bindPopup(`<strong>${CROSSING.label}</strong><br>${CROSSING.note}<br>Walking resumes in Astoria.`)
+      .bindPopup(`<strong>${c.label}</strong><br>${c.note}<br>Walking resumes here.`)
       .addTo(mapLayers);
   }
 
-  // the walking route, drawn as a dark casing + a bright core so it reads on
-  // any part of the basemap
-  L.polyline(g, { color: CASING, weight: 8, opacity: 0.9, lineCap: "round", lineJoin: "round" }).addTo(mapLayers);
-  L.polyline(ahead, {
-    color: BLUE, weight: 3.5, opacity: 0.75, dashArray: "1 6", lineCap: "round",
-  }).addTo(mapLayers);
-  if (walked.length) {
-    L.polyline(walked, { color: BLUE, weight: 4.5, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(mapLayers);
+  // the walking route: dark casing + bright core so it reads on any basemap,
+  // broken wherever a crossing interrupts it
+  for (const run of lineRuns(0, g.length - 1)) {
+    L.polyline(run, { color: CASING, weight: 8, opacity: 0.9, lineCap: "round", lineJoin: "round" }).addTo(mapLayers);
+  }
+  for (const run of lineRuns(splitGi, g.length - 1)) {
+    L.polyline(run, { color: BLUE, weight: 3.5, opacity: 0.75, dashArray: "1 6", lineCap: "round" }).addTo(mapLayers);
+  }
+  if (splitGi > 0) {
+    for (const run of lineRuns(0, splitGi)) {
+      L.polyline(run, { color: BLUE, weight: 4.5, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(mapLayers);
+    }
   }
 
   // day markers: numbered pins when zoomed in, otherwise dots with a numbered
