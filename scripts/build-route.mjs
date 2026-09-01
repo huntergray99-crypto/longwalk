@@ -264,6 +264,83 @@ async function main() {
     `Wrote js/data.js — DETAIL ${Math.round(total)} mi / ${days} days (avg ${(total / days).toFixed(1)}), ` +
       `${geometry.length} line pts; PLANNED ${planned.length} pts.\n`,
   );
+
+  await verifyLegal(full);
+}
+
+/**
+ * Cross-check the routed line against WSDOT's authoritative
+ * "State Route Permanent Bike Restrictions" layer — the state routes where
+ * non-motorized travel (pedestrians and bicycles) is legally prohibited
+ * (Interstates, US-101's Olympia bypass, etc.). Any hit means the route needs
+ * another ANCHORS/EXCLUDE_POLYGONS pass.
+ */
+async function verifyLegal(routePts) {
+  process.stderr.write("Checking route against WSDOT non-motorized restrictions …\n");
+  const lats = routePts.map((p) => p[0]);
+  const lngs = routePts.map((p) => p[1]);
+  const env = {
+    xmin: Math.min(...lngs) - 0.05, ymin: Math.min(...lats) - 0.05,
+    xmax: Math.max(...lngs) + 0.05, ymax: Math.max(...lats) + 0.05,
+    spatialReference: { wkid: 4326 },
+  };
+  const url =
+    "https://data.wsdot.wa.gov/arcgis/rest/services/Shared/ActiveTransportationData/MapServer/0/query" +
+    "?where=1%3D1&outFields=StateRouteNumber&returnGeometry=true&outSR=4326&f=json" +
+    `&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects` +
+    `&geometry=${encodeURIComponent(JSON.stringify(env))}`;
+  let segs;
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": UA } });
+    const json = await res.json();
+    segs = (json.features || []).map((f) => ({
+      sr: f.attributes.StateRouteNumber,
+      paths: (f.geometry.paths || []).map((pa) => pa.map((p) => [p[1], p[0]])),
+    }));
+  } catch (e) {
+    process.stderr.write(`  ! could not reach WSDOT (${e.message}) — skipped legality check\n`);
+    return;
+  }
+
+  const near = []; // route points within ~22 m of a restricted segment
+  for (const p of routePts) {
+    let min = Infinity;
+    let sr = "";
+    for (const seg of segs) {
+      for (const pa of seg.paths) {
+        for (let i = 1; i < pa.length; i++) {
+          const d = pointToSeg(p, pa[i - 1], pa[i]);
+          if (d < min) { min = d; sr = seg.sr; }
+        }
+      }
+    }
+    if (min < 22) near.push({ p, sr, m: Math.round(min) });
+  }
+
+  if (near.length === 0) {
+    process.stderr.write(`  PASS — 0 of ${routePts.length} points touch a restricted state route.\n`);
+  } else {
+    process.stderr.write(
+      `  FAIL — ${near.length} point(s) on/near a non-motorized-restricted route:\n`,
+    );
+    for (const n of near.slice(0, 10)) {
+      process.stderr.write(`    SR ${n.sr}  ${n.m} m  @ ${n.p[0].toFixed(5)},${n.p[1].toFixed(5)}\n`);
+    }
+    process.exitCode = 1;
+  }
+}
+
+function pointToSeg(p, a, b) {
+  const k = Math.cos((p[0] * Math.PI) / 180) * 111320;
+  const P = [p[1] * k, p[0] * 110540];
+  const A = [a[1] * k, a[0] * 110540];
+  const B = [b[1] * k, b[0] * 110540];
+  const dx = B[0] - A[0];
+  const dy = B[1] - A[1];
+  const l2 = dx * dx + dy * dy || 1;
+  let t = ((P[0] - A[0]) * dx + (P[1] - A[1]) * dy) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(P[0] - (A[0] + dx * t), P[1] - (A[1] + dy * t));
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });
