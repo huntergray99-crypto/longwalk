@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f7a4d">
+<title>LongWalk</title>
+<meta name="description" content="Plan and track a long-distance walking journey.">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="./vendor/leaflet.css">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1 id="trip-name">LongWalk</h1>
+  <div id="overall-bar" class="bar"><span></span></div>
+  <div id="summary" class="summary"></div>
+</header>
+
+<main>
+  <section class="tab-panel" data-tab="map">
+    <div id="map"></div>
+  </section>
+
+  <section class="tab-panel" data-tab="route">
+    <div id="route-list" class="scroll"></div>
+  </section>
+
+  <section class="tab-panel" data-tab="log">
+    <div class="scroll">
+      <form id="log-form" class="card">
+        <h2>Add a day</h2>
+        <label>Date
+          <input type="date" name="date" required>
+        </label>
+        <label>Miles walked
+          <input type="number" name="miles" inputmode="decimal" min="0" step="0.1" placeholder="e.g. 18.5">
+        </label>
+        <label>Note
+          <textarea name="note" rows="3" placeholder="Where you slept, what you saw, how the feet feel…"></textarea>
+        </label>
+        <label>Photo
+          <input type="file" name="photo" accept="image/*" capture="environment">
+        </label>
+        <button type="submit" class="btn">Save day</button>
+      </form>
+      <div id="log-list"></div>
+    </div>
+  </section>
+
+  <section class="tab-panel" data-tab="more">
+    <div class="scroll">
+      <section class="card">
+        <h2>Trip start date</h2>
+        <p class="muted">The day you set out. Drives the "Day N on the road" count on the Route tab. Leave blank to skip it.</p>
+        <input type="date" id="start-date">
+      </section>
+      <section class="card">
+        <h2>Backup &amp; restore</h2>
+        <p class="muted">Everything is stored only on this device. Export a copy now and then, especially before clearing your browser.</p>
+        <div class="row">
+          <button id="export-btn" class="btn">Export backup</button>
+          <label class="btn btn-outline">Import backup
+            <input type="file" id="import-file" accept="application/json,.json" hidden>
+          </label>
+        </div>
+        <p id="storage-note" class="muted"></p>
+      </section>
+      <section class="card">
+        <h2>About</h2>
+        <p class="muted">LongWalk v1 — a clean map, leg progress, and a daily log. Works offline once loaded. Map tiles &copy; OpenStreetMap contributors.</p>
+      </section>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar">
+  <button data-tab="map" aria-label="Map">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-5.7 7-11a7 7 0 1 0-14 0c0 5.3 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/></svg>
+    Map
+  </button>
+  <button data-tab="route" aria-label="Route">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    Route
+  </button>
+  <button data-tab="log" aria-label="Log">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6 16.5 16.9 5.6a2 2 0 0 1 2.8 2.8L8.8 19.3 4 20l.7-3.5Z"/></svg>
+    Log
+  </button>
+  <button data-tab="more" aria-label="More">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+    More
+  </button>
+</nav>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="./vendor/leaflet.js"></script>
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>

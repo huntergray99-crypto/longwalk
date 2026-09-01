@@ -1,0 +1,263 @@
+:root {
+  --bg: #f6f4ee;
+  --surface: #ffffff;
+  --surface-2: #efece3;
+  --ink: #23211c;
+  --muted: #6b6659;
+  --line: #ddd8cb;
+  --walked: #1f7a4d;
+  --ahead: #c25a2b;
+  --accent: #1f7a4d;
+  --danger: #b23b3b;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 6px 16px rgba(0,0,0,.05);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16150f;
+    --surface: #22201a;
+    --surface-2: #2c2a22;
+    --ink: #ece8dc;
+    --muted: #a09a89;
+    --line: #38352b;
+    --walked: #3fa06a;
+    --ahead: #d9743f;
+    --accent: #3fa06a;
+    --danger: #d76a6a;
+    --shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior-y: contain;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ---------- header ---------- */
+.app-header {
+  padding: calc(var(--safe-top) + 10px) 14px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  z-index: 5;
+}
+.app-header h1 {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: .01em;
+}
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+.stat { text-align: center; }
+.stat-value { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat-label { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+/* ---------- progress bars ---------- */
+.bar {
+  height: 7px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  overflow: hidden;
+  margin-top: 8px;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--walked);
+  border-radius: 99px;
+  transition: width .3s ease;
+}
+
+/* ---------- layout ---------- */
+main { flex: 1; position: relative; overflow: hidden; }
+.tab-panel { position: absolute; inset: 0; display: none; }
+.tab-panel.active { display: block; }
+.scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 12px calc(var(--safe-bot) + 20px);
+}
+#map { position: absolute; inset: 0; background: var(--surface-2); }
+
+/* ---------- cards ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+.card h2 { font-size: 15px; margin-bottom: 4px; }
+.muted { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.empty { color: var(--muted); text-align: center; padding: 30px 10px; }
+
+/* ---------- route / legs ---------- */
+.leg-name { font-size: 15.5px; font-weight: 650; }
+.leg-done .leg-name { color: var(--walked); }
+.leg-meta {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 3px;
+}
+.leg-meta span {
+  color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+.leg .bar { margin-top: 10px; }
+.hint { color: var(--muted); font-size: 12px; margin-top: 9px; }
+
+.wp-list { list-style: none; margin-top: 6px; }
+.wp {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+.wp.continues { color: var(--muted); font-size: 13px; }
+.wp-tag {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+  border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px;
+}
+.wp-check { display: flex; align-items: center; gap: 12px; cursor: pointer; flex: 1; }
+.wp-check input {
+  appearance: none; -webkit-appearance: none;
+  width: 24px; height: 24px; flex: none;
+  border: 2px solid var(--line); border-radius: 7px;
+  background: var(--bg);
+  display: grid; place-content: center; cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.wp-check input:checked { background: var(--walked); border-color: var(--walked); }
+.wp-check input:checked::after {
+  content: "";
+  width: 6px; height: 11px; margin-top: -2px;
+  border: solid #fff; border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+}
+.wp-name { font-size: 14px; }
+.wp.done .wp-name { color: var(--muted); text-decoration: line-through; }
+
+/* ---------- daily-stop list ---------- */
+.day-card { padding: 4px 14px; }
+.day-list { margin-top: 0; }
+.wp.day { padding: 7px 0; }
+.wp.day:first-child { border-top: 0; }
+.wp.day .wp-name { display: flex; flex-direction: column; gap: 1px; text-decoration: none; }
+.day-num { font-size: 13.5px; font-weight: 600; }
+.day-near { font-size: 11.5px; color: var(--muted); }
+.wp.day.done .day-num { color: var(--muted); text-decoration: line-through; }
+.wp.day.done .day-near { text-decoration: none; }
+.wp.day.tip {
+  margin: 0 -14px; padding: 7px 14px;
+  background: var(--surface-2);
+  background: color-mix(in srgb, var(--walked) 13%, transparent);
+  border-radius: 8px; border-top-color: transparent;
+}
+.wp.day.tip .day-num { color: var(--walked); text-decoration: none; }
+.wp-miles { white-space: nowrap; }
+.wp-miles { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+
+/* ---------- log ---------- */
+#log-form { display: grid; gap: 12px; }
+#log-form h2 { margin-bottom: 2px; }
+#log-form label { display: grid; gap: 5px; font-size: 13px; color: var(--muted); }
+#log-form input, #log-form textarea, #start-date {
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  width: 100%;
+}
+#log-form textarea { resize: vertical; }
+#log-form input[type="file"] { padding: 8px; font-size: 13px; }
+#log-form input[type="file"]::file-selector-button {
+  font: inherit; font-weight: 600; font-size: 13px;
+  margin-right: 10px; padding: 7px 12px;
+  border: 1px solid var(--accent); border-radius: 8px;
+  background: transparent; color: var(--accent); cursor: pointer;
+}
+
+.log-entry header {
+  display: flex; align-items: center; gap: 10px;
+}
+.log-entry time { font-weight: 650; font-size: 14px; }
+.log-miles {
+  background: var(--surface-2); border-radius: 6px; padding: 1px 7px;
+  font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.log-entry header .btn-ghost { margin-left: auto; }
+.log-note { margin-top: 8px; white-space: pre-wrap; font-size: 14px; }
+.log-photo { width: 100%; border-radius: 10px; margin-top: 10px; display: block; }
+
+/* ---------- buttons ---------- */
+.btn {
+  font: inherit; font-weight: 600; font-size: 14px;
+  color: #fff; background: var(--accent);
+  border: 1px solid transparent; border-radius: 10px;
+  padding: 11px 14px; cursor: pointer; text-align: center;
+}
+.btn:disabled { opacity: .55; }
+.btn-outline { color: var(--accent); background: transparent; border-color: var(--accent); }
+.btn-ghost {
+  font: inherit; font-size: 12.5px; font-weight: 600;
+  color: var(--muted); background: transparent; border: 1px solid var(--line);
+  border-radius: 8px; padding: 5px 10px; cursor: pointer;
+  white-space: nowrap; flex: none;
+}
+.btn-ghost.danger { color: var(--danger); border-color: transparent; }
+.row { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.row .btn, .row .btn-outline { flex: 1; }
+
+/* ---------- tabbar ---------- */
+.tabbar {
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding-bottom: var(--safe-bot);
+  z-index: 5;
+}
+.tabbar button {
+  flex: 1;
+  font: inherit; font-size: 10.5px; font-weight: 600;
+  color: var(--muted); background: none; border: 0;
+  padding: 7px 4px 5px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.tabbar button svg {
+  width: 22px; height: 22px;
+  fill: none; stroke: currentColor; stroke-width: 1.9;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.tabbar button[data-tab="more"] svg circle { fill: currentColor; }
+.tabbar button.active { color: var(--accent); }
+
+/* ---------- toast ---------- */
+.toast {
+  position: fixed;
+  left: 50%; bottom: calc(var(--safe-bot) + 74px);
+  transform: translate(-50%, 20px);
+  background: var(--ink); color: var(--bg);
+  font-size: 13px; padding: 10px 16px; border-radius: 99px;
+  opacity: 0; pointer-events: none; transition: all .25s ease;
+  max-width: 88vw; text-align: center; z-index: 20;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.leaflet-popup-content { font: inherit; }
